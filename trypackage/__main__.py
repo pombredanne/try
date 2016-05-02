@@ -8,11 +8,13 @@
 """
 
 
+import os
 import re
 import sys
 import click
 
 from .core import Package, TryError, try_packages
+from .config import parse_config
 
 
 def normalize_python_version(ctx, param, value):  # pylint: disable=unused-argument
@@ -49,32 +51,43 @@ def resolve_packages(ctx, param, value):
 
             url = name
 
-        return Package(name, url, import_name)
+        return Package(name, url, import_name.replace("-", "_"))
 
     return [resolve_package(x) for x in value]
 
 
-@click.command()
+@click.command(context_settings=dict(default_map=parse_config(os.path.join(click.get_app_dir("try"), "config.ini"))))
 @click.argument("packages", nargs=-1, callback=resolve_packages)
+@click.option("--virtualenv",
+              help="Use already existing virtualenv.")
 @click.option("-p", "--python", callback=normalize_python_version,
               help="The python version to use.")
 @click.option("--ipython", "use_ipython", flag_value=True,
               help="Use ipython instead of python.")
+@click.option("--shell",
+              help="Specify the python shell to use. (This will override --ipython)")
 @click.option("-k", "--keep", flag_value=True,
               help="Keep try environment files.")
 @click.option("--editor", "use_editor", flag_value=True,
-              help="Try with editor instead of interpreter.")
+              help="Try with editor instead of a shell.")
+@click.option("--tmpdir",
+              help="Specify location for temporary directory.")
 @click.version_option()
-def cli(packages, python, use_ipython, keep, use_editor):
+def cli(packages, virtualenv, python, use_ipython, shell, keep, use_editor, tmpdir):  # pylint: disable=too-many-arguments
     """Easily try out python packages."""
     if not packages:
         raise click.BadArgumentUsage("At least one package is required.")
 
+    if not shell and use_ipython:
+        shell = "ipython"
+
     click.echo("==> Use python {0}".format(click.style(python, bold=True)))
+    if shell:
+        click.echo("==> Use shell {0}".format(click.style(shell, bold=True)))
     click.echo("[*] Downloading packages: {0}".format(click.style(",".join(p.url for p in packages), bold=True)))
 
     try:
-        envdir = try_packages(packages, python, use_ipython, use_editor, keep)
+        envdir = try_packages(packages, virtualenv, python, shell, use_editor, keep, tmpdir)
     except TryError as error:
         click.secho("[*] {0}".format(error), fg="red")
         sys.exit(1)

@@ -10,13 +10,12 @@ import ast
 import re
 
 from setuptools import setup, find_packages
-from pip.req import parse_requirements
 
 
 def get_version():
     """Gets the current version"""
     _version_re = re.compile(r"__VERSION__\s+=\s+(.*)")
-    with open("try/__init__.py", "rb") as init_file:
+    with open("trypackage/__init__.py", "rb") as init_file:
         version = str(ast.literal_eval(_version_re.search(
             init_file.read().decode("utf-8")).group(1)))
     return version
@@ -37,11 +36,11 @@ setup(
     packages=find_packages(),
     include_package_data=True,
 
-    install_requires=list(x.name for x in parse_requirements("./requirements.txt", session=False)),
+    install_requires=["click"],
 
     entry_points={
         "console_scripts": [
-            "try=try.__main__:main",
+            "try=trypackage.__main__:main",
         ]
     },
 
